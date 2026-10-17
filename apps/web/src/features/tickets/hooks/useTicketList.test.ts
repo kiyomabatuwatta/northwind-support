@@ -1,3 +1,4 @@
+
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ticketsApi } from '../../../api/tickets';
@@ -50,5 +51,58 @@ describe('useTicketList', () => {
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data?.items).toHaveLength(1);
+  });
+
+  it('requests immediately when a non-search filter changes, and keeps it when searching', async () => {
+    const { result } = renderHook(() => useTicketList());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(getTickets).toHaveBeenCalledTimes(1);
+
+    // DEFECT-117: this change used to send no request at all.
+    act(() => {
+      result.current.updateFilters({ status: 'InProgress' });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(getTickets).toHaveBeenCalledTimes(2);
+    expect(getTickets).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'InProgress', page: 1 }),
+    );
+
+    // Typing in search must still carry the earlier status, and wait for the debounce.
+    act(() => {
+      result.current.updateFilters({ search: 'invoice' });
+    });
+
+    expect(getTickets).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(getTickets).toHaveBeenCalledTimes(3);
+    expect(getTickets).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'InProgress', search: 'invoice' }),
+    );
+
+    // Clearing the search must keep the status too (it used to go stale).
+    act(() => {
+      result.current.updateFilters({ search: '' });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(getTickets).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'InProgress', search: '' }),
+    );
   });
 });
