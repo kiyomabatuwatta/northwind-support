@@ -13,6 +13,8 @@ namespace SupportDesk.Domain.Aggregates.Tickets;
 /// </remarks>
 public sealed class Ticket : AggregateRoot
 {
+    private readonly List<TicketEscalation> _escalations = [];
+
     private Ticket()
     {
         // For EF Core.
@@ -43,7 +45,16 @@ public sealed class Ticket : AggregateRoot
     /// <summary>When the team has committed to responding by. Null when no SLA applies.</summary>
     public DateTime? DueAtUtc { get; private set; }
 
+    /// <summary>
+    /// When the current SLA window started: triage time, or the last escalation. Null on tickets
+    /// that predate it, which then measure their window from <see cref="CreatedAtUtc"/>.
+    /// </summary>
+    public DateTime? SlaStartedAtUtc { get; private set; }
+
     public DateTime? ResolvedAtUtc { get; private set; }
+
+    /// <summary>The ticket's escalation history. Rows are only ever added.</summary>
+    public IReadOnlyCollection<TicketEscalation> Escalations => _escalations;
 
     /// <summary>True while the ticket still needs work from an agent.</summary>
     public bool IsOpen => Status is not (TicketStatus.Resolved or TicketStatus.Closed);
@@ -110,5 +121,55 @@ public sealed class Ticket : AggregateRoot
     {
         AssignedAgentId = agentId;
         UpdatedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// Applies the outcome of triage: the owner (if any) and the SLA due date, and starts the
+    /// SLA window. The decision itself is made by the triage rules, not here.
+    /// </summary>
+    public void ApplyTriage(int? agentId, DateTime dueAtUtc, DateTime nowUtc)
+    {
+        AssignedAgentId = agentId;
+        DueAtUtc = dueAtUtc;
+        SlaStartedAtUtc = nowUtc;
+        UpdatedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// Records an escalation and applies it. Whether the ticket may be escalated, and what the
+    /// new priority, due date and owner are, is decided by the caller (the escalation policy).
+    /// </summary>
+    public TicketEscalation Escalate(
+        TicketPriority toPriority,
+        DateTime toDueAtUtc,
+        int? toAgentId,
+        string reason,
+        string escalatedBy,
+        DateTime nowUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(escalatedBy);
+
+        var record = new TicketEscalation(
+            Id,
+            Priority,
+            toPriority,
+            AssignedAgentId,
+            toAgentId,
+            DueAtUtc,
+            toDueAtUtc,
+            reason.Trim(),
+            escalatedBy.Trim(),
+            nowUtc);
+
+        _escalations.Add(record);
+
+        Priority = toPriority;
+        AssignedAgentId = toAgentId;
+        DueAtUtc = toDueAtUtc;
+        SlaStartedAtUtc = nowUtc;
+        UpdatedAtUtc = nowUtc;
+
+        return record;
     }
 }
