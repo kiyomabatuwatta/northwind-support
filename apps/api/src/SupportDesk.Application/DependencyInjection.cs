@@ -9,6 +9,9 @@ using SupportDesk.Application.Features.Tickets.Commands.ChangeTicketStatus;
 using SupportDesk.Application.Features.Tickets.Commands.RaiseTicket;
 using SupportDesk.Application.Features.Tickets.Queries.GetTicket;
 using SupportDesk.Application.Features.Tickets.Queries.SearchTickets;
+using SupportDesk.Application.Features.Tickets.Triage;
+using SupportDesk.Domain.Sla;
+using SupportDesk.Domain.Triage;
 
 namespace SupportDesk.Application;
 
@@ -31,6 +34,12 @@ public static class DependencyInjection
         services.AddScoped<GetAgentsQueryHandler>();
 
         services.AddScoped<GetCategoriesQueryHandler>();
+
+        // Triage and escalation rules: stateless, shared by create and escalate.
+        services.AddSingleton<SlaCalculator>();
+        services.AddSingleton<AgentSelector>();
+        services.AddSingleton<EscalationPolicy>();
+        services.AddScoped<TicketTriageService>();
 
         services.AddValidatorsFromAssemblyContaining<RaiseTicketCommandHandler>(ServiceLifetime.Singleton);
 

@@ -6,10 +6,49 @@ namespace SupportDesk.Domain.Aggregates.Tickets;
 /// </summary>
 public static class SlaEvaluator
 {
+    /// <summary>Without a window start there is no at-risk state.</summary>
     public static SlaStatus Evaluate(DateTime? dueAtUtc, DateTime? resolvedAtUtc, DateTime nowUtc) =>
-        dueAtUtc is null ? SlaStatus.NotApplicable
-        : resolvedAtUtc is not null
-            ? (resolvedAtUtc <= dueAtUtc ? SlaStatus.Met : SlaStatus.Breached)
-        : nowUtc > dueAtUtc ? SlaStatus.Breached
-        : SlaStatus.WithinSla;
+        Evaluate(dueAtUtc, resolvedAtUtc, nowUtc, windowStartUtc: null, atRiskThresholdPercent: 0);
+
+    /// <param name="windowStartUtc">When the current SLA window began.</param>
+    /// <param name="atRiskThresholdPercent">At risk when this percent or less of the window remains.</param>
+    public static SlaStatus Evaluate(
+        DateTime? dueAtUtc,
+        DateTime? resolvedAtUtc,
+        DateTime nowUtc,
+        DateTime? windowStartUtc,
+        double atRiskThresholdPercent)
+    {
+        if (dueAtUtc is not { } due)
+        {
+            return SlaStatus.NotApplicable;
+        }
+
+        if (resolvedAtUtc is { } resolved)
+        {
+            return resolved <= due ? SlaStatus.Met : SlaStatus.Breached;
+        }
+
+        if (nowUtc > due)
+        {
+            return SlaStatus.Breached;
+        }
+
+        return IsAtRisk(due, windowStartUtc, nowUtc, atRiskThresholdPercent)
+            ? SlaStatus.AtRisk
+            : SlaStatus.WithinSla;
+    }
+
+    private static bool IsAtRisk(DateTime due, DateTime? windowStartUtc, DateTime nowUtc, double thresholdPercent)
+    {
+        if (windowStartUtc is not { } start || thresholdPercent <= 0)
+        {
+            return false;
+        }
+
+        var window = due - start;
+        var remaining = due - nowUtc;
+
+        return (double)remaining.Ticks * 100 <= (double)window.Ticks * thresholdPercent;
+    }
 }

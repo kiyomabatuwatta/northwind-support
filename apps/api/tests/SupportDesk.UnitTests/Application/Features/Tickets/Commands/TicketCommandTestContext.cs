@@ -10,6 +10,10 @@ using SupportDesk.Domain.Aggregates.Customers;
 using SupportDesk.Domain.Aggregates.Tickets;
 using SupportDesk.Domain.Repositories;
 using SupportDesk.UnitTests.TestDoubles;
+using SupportDesk.Application.Abstractions;
+using SupportDesk.Application.Features.Tickets.Triage;
+using SupportDesk.Domain.Sla;
+using SupportDesk.Domain.Triage;
 
 namespace SupportDesk.UnitTests.Application.Features.Tickets.Commands;
 
@@ -44,10 +48,17 @@ internal sealed class TicketCommandTestContext
                 Category = new CategoryDto(1, "General", false)
             });
 
+        TriageData.Setup(d => d.GetContextAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TriageContext(false, false, new CategoryInfo(1, "General", false)));
+
+        TriageData.Setup(d => d.GetAgentCandidatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AgentCandidate>());
+
         var getTicket = new GetTicketQueryHandler(TicketQueries.Object);
+        var triage = new TicketTriageService(TriageData.Object, new SlaCalculator(new SlaOptions()), new AgentSelector());
 
         RaiseTicket = new RaiseTicketCommandHandler(
-            Tickets.Object, Customers.Object, Categories.Object, UnitOfWork.Object, Clock, getTicket,
+            Tickets.Object, Customers.Object, Categories.Object, UnitOfWork.Object, Clock, triage, getTicket,
             NullLogger<RaiseTicketCommandHandler>.Instance);
 
         ChangeTicketStatus = new ChangeTicketStatusCommandHandler(Tickets.Object, UnitOfWork.Object, Clock, getTicket);
@@ -68,6 +79,8 @@ internal sealed class TicketCommandTestContext
     public Mock<IUnitOfWork> UnitOfWork { get; } = new();
 
     public Mock<ITicketQueries> TicketQueries { get; } = new();
+
+    public Mock<ITriageData> TriageData { get; } = new();
 
     public FixedClock Clock { get; } = new();
 

@@ -22,7 +22,7 @@ public sealed class SlaCalculator
                 $"{priority} base window {baseHours:0.##}h");
         }
 
-        var halved = baseHours * _options.PremiumMultiplier;
+        var halved = baseHours * _options.PremiumCustomerMultiplier;
         var hours = Math.Max(halved, _options.MinimumWindowHours);
         var floorApplied = hours > halved;
 

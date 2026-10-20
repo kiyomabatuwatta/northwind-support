@@ -2,6 +2,7 @@ using SupportDesk.Domain.Aggregates.Tickets;
 
 namespace SupportDesk.Domain.Sla;
 
+/// <summary>Bound from the "Sla" configuration section. Defaults match the business rules.</summary>
 public sealed class SlaOptions
 {
     public const string SectionName = "Sla";
@@ -14,9 +15,10 @@ public sealed class SlaOptions
         [TicketPriority.Low] = 72,
     };
 
-    public double PremiumMultiplier { get; set; } = 0.5;
+    public double PremiumCustomerMultiplier { get; set; } = 0.5;
 
     public double MinimumWindowHours { get; set; } = 1;
 
-    public double AtRiskThreshold { get; set; } = 0.25;
+    /// <summary>A ticket is at risk when this percent or less of its window remains.</summary>
+    public double AtRiskThresholdPercent { get; set; } = 25;
 }
