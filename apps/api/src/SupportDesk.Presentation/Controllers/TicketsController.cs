@@ -3,7 +3,9 @@ using SupportDesk.Application.Contracts.Common;
 using SupportDesk.Application.Contracts.Tickets;
 using SupportDesk.Application.Features.Tickets.Commands.AssignTicket;
 using SupportDesk.Application.Features.Tickets.Commands.ChangeTicketStatus;
+using SupportDesk.Application.Features.Tickets.Commands.EscalateTicket;
 using SupportDesk.Application.Features.Tickets.Commands.RaiseTicket;
+using SupportDesk.Application.Features.Tickets.Queries.GetEscalations;
 using SupportDesk.Application.Features.Tickets.Queries.GetTicket;
 using SupportDesk.Application.Features.Tickets.Queries.SearchTickets;
 
@@ -27,7 +29,7 @@ public sealed class TicketsController : ControllerBase
     public Task<TicketDetailDto> Get(int id, [FromServices] GetTicketQueryHandler handler, CancellationToken ct) =>
         handler.HandleAsync(id, ct);
 
-    /// <summary>Raises a new ticket.</summary>
+    /// <summary>Raises a new ticket and returns the triage decision with it.</summary>
     [HttpPost]
     public async Task<ActionResult<TicketDetailDto>> Create(
         CreateTicketRequest request,
@@ -56,4 +58,23 @@ public sealed class TicketsController : ControllerBase
         [FromServices] AssignTicketCommandHandler handler,
         CancellationToken ct) =>
         handler.HandleAsync(id, request, ct);
+
+    /// <summary>
+    /// Escalates a ticket one priority level. 409 when it is already Critical, or Resolved or Closed.
+    /// </summary>
+    [HttpPost("{id:int}/escalate")]
+    public Task<EscalationResultDto> Escalate(
+        int id,
+        EscalateTicketRequest request,
+        [FromServices] EscalateTicketCommandHandler handler,
+        CancellationToken ct) =>
+        handler.HandleAsync(id, request, ct);
+
+    /// <summary>A ticket's escalation history, newest first.</summary>
+    [HttpGet("{id:int}/escalations")]
+    public Task<IReadOnlyList<EscalationDto>> GetEscalations(
+        int id,
+        [FromServices] GetEscalationsQueryHandler handler,
+        CancellationToken ct) =>
+        handler.HandleAsync(id, ct);
 }

@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IAgentQueries, AgentQueries>();
         services.AddScoped<ICategoryQueries, CategoryQueries>();
         services.AddScoped<ITriageData, TriageData>();
+        services.AddScoped<IEscalationQueries, EscalationQueries>();
 
         services.AddScoped<SupportDbSeeder>();
 
