@@ -25,11 +25,11 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions?
     /// </remarks>
     public async Task<PagedResult<TicketListItemDto>> GetPagedAsync(TicketQuery query, CancellationToken ct)
     {
-        var tickets = ApplyFilters(TicketsWithLabels(), query);
+        var now = clock.UtcNow;
+
+        var tickets = ApplyFilters(TicketsWithLabels(), query, now);
 
         var totalCount = await tickets.CountAsync(ct);
-
-        var now = clock.UtcNow;
 
         var items = await ApplySort(tickets, query)
             .Skip((query.Page - 1) * query.PageSize)
@@ -139,7 +139,10 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions?
     /// stays an <see cref="IQueryable{T}"/> expression, so the database does the work before the
     /// count and the paging. To add a filter, add one <c>if</c> block here.
     /// </summary>
-    private static IQueryable<TicketWithLabels> ApplyFilters(IQueryable<TicketWithLabels> source, TicketQuery query)
+    private IQueryable<TicketWithLabels> ApplyFilters(
+        IQueryable<TicketWithLabels> source,
+        TicketQuery query,
+        DateTime now)
     {
         if (query.Status is { } status)
         {
@@ -171,6 +174,11 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions?
             source = source.Where(x => x.Ticket.AssignedAgentId == null);
         }
 
+        if (query.SlaStatus is { } slaStatus)
+        {
+            source = ApplySlaFilter(source, slaStatus, now);
+        }
+
         // Blank or whitespace-only search is ignored. Contains is translated to a parameterised
         // LIKE, so '%' and '_' typed by the user are matched literally.
         var search = query.Search?.Trim();
@@ -184,6 +192,53 @@ public sealed class TicketQueries(SupportDbContext db, IClock clock, SlaOptions?
         }
 
         return source;
+    }
+
+    /// <summary>
+    /// The SQL form of <see cref="SlaEvaluator"/>: the same four outcomes, written as date
+    /// predicates so the database can filter, count and page. Keep the two in step.
+    /// "Remaining" and "window" are compared in whole seconds with DATEDIFF, which is exact
+    /// enough for a percentage threshold; the evaluator compares ticks.
+    /// </summary>
+    private IQueryable<TicketWithLabels> ApplySlaFilter(
+        IQueryable<TicketWithLabels> source,
+        SlaStatus status,
+        DateTime now)
+    {
+        var thresholdPercent = _sla.AtRiskThresholdPercent;
+
+        return status switch
+        {
+            SlaStatus.NotApplicable => source.Where(x => x.Ticket.DueAtUtc == null),
+
+            SlaStatus.Met => source.Where(x =>
+                x.Ticket.DueAtUtc != null &&
+                x.Ticket.ResolvedAtUtc != null &&
+                x.Ticket.ResolvedAtUtc <= x.Ticket.DueAtUtc),
+
+            SlaStatus.Breached => source.Where(x =>
+                x.Ticket.DueAtUtc != null &&
+                ((x.Ticket.ResolvedAtUtc != null && x.Ticket.ResolvedAtUtc > x.Ticket.DueAtUtc) ||
+                 (x.Ticket.ResolvedAtUtc == null && now > x.Ticket.DueAtUtc))),
+
+            SlaStatus.AtRisk => source.Where(x =>
+                x.Ticket.DueAtUtc != null &&
+                x.Ticket.ResolvedAtUtc == null &&
+                now <= x.Ticket.DueAtUtc &&
+                EF.Functions.DateDiffSecond(now, x.Ticket.DueAtUtc) * 100 <=
+                EF.Functions.DateDiffSecond(x.Ticket.SlaStartedAtUtc ?? x.Ticket.CreatedAtUtc, x.Ticket.DueAtUtc)
+                    * thresholdPercent),
+
+            SlaStatus.WithinSla => source.Where(x =>
+                x.Ticket.DueAtUtc != null &&
+                x.Ticket.ResolvedAtUtc == null &&
+                now <= x.Ticket.DueAtUtc &&
+                EF.Functions.DateDiffSecond(now, x.Ticket.DueAtUtc) * 100 >
+                EF.Functions.DateDiffSecond(x.Ticket.SlaStartedAtUtc ?? x.Ticket.CreatedAtUtc, x.Ticket.DueAtUtc)
+                    * thresholdPercent),
+
+            _ => source
+        };
     }
 
     private static IQueryable<TicketWithLabels> ApplySort(IQueryable<TicketWithLabels> source, TicketQuery query)
