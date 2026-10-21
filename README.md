@@ -161,6 +161,13 @@ Tasks 3 and 4 build, run and were checked (see *How I checked*).
 - **Sla options are read by hand** in `Infrastructure.DependencyInjection` so the Infrastructure project needs no extra configuration package.
 - Not added: MediatR, AutoMapper, a generic repository, an interface per class.
 
+### Design patterns used (and why)
+
+- **Policy / strategy objects for the business rules.** `PriorityRule`, `SlaCalculator`, `AgentSelector` and `EscalationPolicy` each own one rule behind a small class, so create and escalate share them and each can be tested alone. A single "triage service" holding every rule could not.
+- **Repository + Unit of Work.** The domain defines the repository interfaces (`ITicketRepository`, `IAgentRepository`) and EF Core implements them; `IUnitOfWork` makes a ticket change and its escalation row save together. These are the real seams, which is why handlers are tested with mocks.
+- **Options pattern for configuration.** SLA windows come from `SlaOptions` and the token settings from `JwtOptions`, so numbers and keys are not literals in code.
+- Not used on purpose: MediatR, AutoMapper, a generic repository, an interface per class.
+
 ### The defect (DEFECT-117)
 
 See commit `f8337c1`. **Root cause:** the effect that fetched tickets only depended on `search`, `page` and `pageSize`, so changing any other filter (like Status) never re-ran it, and its fetch function read an old copy of `filters` from an earlier render, which is why the next search carried the stale status. **Fix:** the request is now built from every filter field, so any change sends a request; only the search text is debounced (300 ms), and responses to outdated requests are ignored. **Verify:** `npm test` runs `useTicketList.test.ts`, which changes the status and asserts the request that is sent; it fails on the original code.
