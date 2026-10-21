@@ -87,10 +87,12 @@ Both pass on a clean checkout and neither needs a database.
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/tickets` | Paged list with `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. **Filters are accepted but not applied yet** (Task 1). |
+| `GET /api/tickets` | Paged list with `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. All filters, including `slaStatus`, are applied in the database. |
 | `GET /api/tickets/{id}` | One ticket |
 | `POST /api/tickets` | Create a ticket |
 | `PATCH /api/tickets/{id}/status` · `/assignment` | Change status / assignee |
+| `POST /api/tickets/{id}/escalate` | Escalate one priority level (reason 5-500 chars). 409 for Critical, Resolved or Closed |
+| `GET /api/tickets/{id}/escalations` | Escalation history, newest first |
 | `GET /api/customers` · `/api/agents` · `/api/categories` | Reference data |
 
 Errors are `ProblemDetails`: `400` validation, `404` not found, `409` conflict or business rule.
@@ -118,11 +120,11 @@ and 40 tickets across every status, priority and SLA state.
 | --- | --- |
 | 1. DEFECT-117 + server-side filtering | **Done** (commits `f8337c1`, `773501b`) |
 | 2. Escalation & assignment, **backend** | **Done**: triage on create, escalation, history, `slaStatus` filter, migration, tests |
-| 2. Escalation & assignment, **frontend** | **Not finished** (SLA indicator, SLA filter, escalation panel, history, triage result) |
+| 2. Escalation & assignment, **frontend** | **Done**: one SLA indicator (list and detail), SLA filter, escalation panel with client validation, history, triage result after create, tests |
 | 3. Login and authentication | **Not finished** |
 | 4. Dockerise the API | **Not finished** |
 
-I ran out of time and chose to finish the backend of Task 2 properly rather than rush four tasks.
+I ran out of time and chose to finish Task 2 properly (backend and frontend) rather than rush four tasks. Tasks 3 and 4 are not started in code; the plans are in APPROACH.md.
 
 ### Business rules as I understood them
 
@@ -144,7 +146,7 @@ I ran out of time and chose to finish the backend of Task 2 properly rather than
 
 ### The defect (DEFECT-117)
 
-See commit `f8337c1`. **Root cause and fix: TO BE WRITTEN IN MY OWN WORDS BEFORE SUBMITTING (2 sentences; `git show f8337c1` shows the change).**
+See commit `f8337c1`. **Root cause:** the effect that fetched tickets only depended on `search`, `page` and `pageSize`, so changing any other filter (like Status) never re-ran it, and its fetch function read an old copy of `filters` from an earlier render, which is why the next search carried the stale status. **Fix:** the request is now built from every filter field, so any change sends a request; only the search text is debounced (300 ms), and responses to outdated requests are ignored. **Verify:** `npm test` runs `useTicketList.test.ts`, which changes the status and asserts the request that is sent; it fails on the original code.
 
 ### Filtering
 
@@ -171,18 +173,19 @@ There is no login yet (Task 3 not done), so there are **no development credentia
 - Domain rules: SLA window per priority and tier including the 1-hour floor, forced-Critical categories, agent selection (fewest open, specialists only, full and inactive agents skipped, deterministic ties, nobody eligible), escalation (one level up, due date from now, owner kept or reassigned, history values, Critical/Resolved/Closed rejected).
 - SLA status at the boundaries: exactly on the due date, one tick after, exactly at 25%, one tick either side, resolved on time vs late.
 - Escalation use case (mocked repositories) and the `slaStatus` filter against SQLite.
-- **Not covered:** the `AtRisk` and `WithinSla` SQL filters (they use SQL Server's `DATEDIFF`, which SQLite cannot run); frontend tests, because the frontend part was not built.
+- Frontend (Vitest + Testing Library): a too-short reason blocks submission and the API is not called; a 409 is shown and the ticket is unchanged; the SLA indicator renders every state with different text and symbol; the escalate control is disabled for a Critical ticket.
+- **Not covered:** the `AtRisk` and `WithinSla` SQL filters (they use SQL Server's `DATEDIFF`, which SQLite cannot run); the history list and triage result components have no tests.
 
 ### AI usage
 
-- **Tool:** Claude (chat), used for the domain rules, the escalation entity and EF configuration, the use cases and endpoints, the SQL filter, the unit tests and the setup scripts.
+- **Tool:** Claude (chat), used for the domain rules, the escalation entity and EF configuration, the use cases and endpoints, the SQL filter, the unit tests, the React components (SLA indicator, escalation panel, history, triage result) and the setup scripts.
 - **What went wrong:** Claude wrote the first rules without seeing my repository and guessed names; I then sent my real code and it was adapted (for example to my existing `SlaEvaluator` and the `Sla` configuration names). Its change to the `RaiseTicketCommandHandler` constructor broke the existing `TicketCommandTestContext` (compiler error CS7036), which I fixed.
 - **How I verified:** `dotnet build` and the full `dotnet test` run before every commit; the migration was inspected for unexpected drops before applying it.
 - **Not yet verified by me:** the SQL generated for the `slaStatus` filter on SQL Server (it should be checked in the API console).
 
 ### Known limitations
 
-- Tasks 2 (frontend), 3 and 4 are not done; the optional SLA summary report is not done.
+- Tasks 3 and 4 are not done; the optional SLA summary report is not done.
 - Every API endpoint is currently open (no authentication).
 - `escalatedBy` is taken from the request body.
 - Assignment and escalation read open-ticket counts without locking, so two simultaneous creates could both pick the same agent at their limit.

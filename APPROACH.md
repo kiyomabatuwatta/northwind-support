@@ -2,7 +2,7 @@
 
 ## Task 1: the defect and the filtering
 
-I reproduced DEFECT-117 from the Network tab, found why changing a single filter did not send a request, fixed the cause rather than the symptom, and added a regression test that asserts the request that is sent (commit `f8337c1`). **Root cause: to be written in my own words before submitting.**
+I reproduced DEFECT-117 from the Network tab, found why changing a single filter did not send a request, fixed the cause rather than the symptom, and added a regression test that asserts the request that is sent (commit `f8337c1`). **Root cause: the fetch effect only depended on search, page and page size, so other filters never triggered a request, and it used stale filters (details in the README).**
 
 For the filtering I put every filter in one place, `TicketQueries.ApplyFilters`, as `IQueryable` expressions that are ANDed together before the count and the paging, so the database does the filtering and `totalCount` matches the filtered set (commit `773501b`). Adding the next filter means adding one `if` block.
 
@@ -16,7 +16,9 @@ SLA status stays derived. Because the at-risk rule needs the start of the curren
 
 Escalation history is an add-only collection on the `Ticket` aggregate, saved in the same unit of work as the ticket change, with an index chosen for the one query it serves (one ticket, newest first).
 
-I did not finish the frontend part of Task 2.
+## Task 2: escalation and assignment (frontend)
+
+One `SlaIndicator` component draws every SLA state (text plus symbol, not colour alone) and is used by the list and the detail page. The `slaStatus` filter goes through the same request-building code as the DEFECT-117 fix, so it needed no special wiring. The escalation panel validates the reason (5-500 characters) before calling the API, shows server errors including a 409, and refreshes the ticket and history from the response. Validation rules live in `escalationRules.ts` so they sit in one place.
 
 ## Task 3: authentication
 
