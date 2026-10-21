@@ -129,10 +129,10 @@ and 40 tickets across every status, priority and SLA state.
 | 1. DEFECT-117 + server-side filtering | **Done** (commits `f8337c1`, `773501b`) |
 | 2. Escalation & assignment, **backend** | **Done**: triage on create, escalation, history, `slaStatus` filter, migration, tests |
 | 2. Escalation & assignment, **frontend** | **Done**: one SLA indicator (list and detail), SLA filter, escalation panel with client validation, history, triage result after create, tests |
-| 3. Login and authentication | **Written, not yet run by me**: hashed passwords, `/api/auth/login` and `/me`, JWT, fallback policy, `escalatedBy` from the token, login page, protected routes, logout, 401 handling. Web checks pass (21 tests, `tsc`, `eslint`); the .NET changes still need a `dotnet build` and `dotnet test` run |
+| 3. Login and authentication | **Done**: `dotnet build` and `dotnet test` pass (88 tests): hashed passwords, `/api/auth/login` and `/me`, JWT, fallback policy, `escalatedBy` from the token, login page, protected routes, logout, 401 handling. Web checks pass (21 tests, `tsc`, `eslint`). Not yet exercised by hand against a running API |
 | 4. Dockerise the API | **Written, not yet run by me**: multi-stage Dockerfile, `.dockerignore`, `api` service in compose, `/health`. The Docker verification steps below have not been run yet |
 
-Task 3 and 4 were written late and could not be compiled or run in the environment I used, so please treat them as unverified until the commands under *How I checked* have been run.
+Task 3 builds and its tests pass; Task 4 (Docker) has not been run yet, see *How I checked*.
 
 ### Business rules as I understood them
 
@@ -232,7 +232,7 @@ Web side, run: `npm test` (21 tests), `tsc` and `eslint` all pass.
 ### Known limitations
 
 - The optional SLA summary report is not done.
-- Tasks 3 and 4 are unverified (see *How I checked*).
+- Task 4 (Docker) is unverified (see *How I checked*).
 - No lockout or rate limiting on login, no refresh tokens, no password change or reset, no roles: all out of scope.
 - A deactivated agent's existing token keeps working on ordinary endpoints until it expires (up to 60 minutes); only `/api/auth/me` and new logins check that the agent is still active.
 - The token is in `sessionStorage`, readable by page script (see *Authentication*).
