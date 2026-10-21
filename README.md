@@ -129,7 +129,7 @@ and 40 tickets across every status, priority and SLA state.
 | 1. DEFECT-117 + server-side filtering | **Done** (commits `f8337c1`, `773501b`) |
 | 2. Escalation & assignment, **backend** | **Done**: triage on create, escalation, history, `slaStatus` filter, migration, tests |
 | 2. Escalation & assignment, **frontend** | **Done**: one SLA indicator (list and detail), SLA filter, escalation panel with client validation, history, triage result after create, tests |
-| 3. Login and authentication | **Done**: `dotnet build` and `dotnet test` pass (88 tests): hashed passwords, `/api/auth/login` and `/me`, JWT, fallback policy, `escalatedBy` from the token, login page, protected routes, logout, 401 handling. Web checks pass (21 tests, `tsc`, `eslint`). Not yet exercised by hand against a running API |
+| 3. Login and authentication | **Done**: `dotnet build` and `dotnet test` pass (88 tests): hashed passwords, `/api/auth/login` and `/me`, JWT, fallback policy, `escalatedBy` from the token, login page, protected routes, logout, 401 handling. Web checks pass (21 tests, `tsc`, `eslint`). Login, the 401 on a protected endpoint and `/health` were checked by hand against the running container |
 | 4. Dockerise the API | **Done and run**: multi-stage Dockerfile, `.dockerignore`, `api` service in compose, `/health`. Verified with `docker compose up --build` (see *How I checked*); the cached-restore check and the SDK image size are not done |
 
 Tasks 3 and 4 build, run and were checked (see *How I checked*).
