@@ -170,7 +170,7 @@ Tasks 3 and 4 build, run and were checked (see *How I checked*).
 
 ### The defect (DEFECT-117)
 
-See commit `f8337c1`. **Root cause:** the effect that fetched tickets only depended on `search`, `page` and `pageSize`, so changing any other filter (like Status) never re-ran it, and its fetch function read an old copy of `filters` from an earlier render, which is why the next search carried the stale status. **Fix:** the request is now built from every filter field, so any change sends a request; only the search text is debounced (300 ms), and responses to outdated requests are ignored. **Verify:** `npm test` runs `useTicketList.test.ts`, which changes the status and asserts the request that is sent; it fails on the original code.
+See commit `f8337c1`. **Root cause:** The effect that loaded the tickets only re-ran when the search text, page or page size changed, so changing another filter such as Status never sent a request. Its fetch function also used an old copy of the filters from an earlier render, so the next search sent the previous Status. **Fix:** I made the request depend on every filter, so any change sends a new request. Only the search box waits 300 ms (to avoid a request on every key), and responses to old requests are ignored. **Check:** `npm test` runs `useTicketList.test.ts`, which changes the Status and checks that a request is sent. It fails on the old code.
 
 ### Filtering
 
