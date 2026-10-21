@@ -134,6 +134,15 @@ and 40 tickets across every status, priority and SLA state.
 
 Tasks 3 and 4 build, run and were checked (see *How I checked*).
 
+### Time spent (rough)
+
+| When | Work | Time |
+| --- | --- | --- |
+| Day 1 | Setup, reading the brief, Task 1 (DEFECT-117 and filtering) | about 6 h |
+| Day 2 | Task 2 (backend and UI) | about 7 h |
+| Day 3 (night, past the deadline) | Tasks 3 and 4, README, Docker checks, getting the work pushed to GitHub | about 3 h |
+| **Total** | | **about 16 h** |
+
 ### Business rules as I understood them
 
 - **Priority (BR-1):** the requested priority, defaulting to Medium; a category flagged `ForcesCriticalPriority` is always Critical.
