@@ -130,9 +130,9 @@ and 40 tickets across every status, priority and SLA state.
 | 2. Escalation & assignment, **backend** | **Done**: triage on create, escalation, history, `slaStatus` filter, migration, tests |
 | 2. Escalation & assignment, **frontend** | **Done**: one SLA indicator (list and detail), SLA filter, escalation panel with client validation, history, triage result after create, tests |
 | 3. Login and authentication | **Done**: `dotnet build` and `dotnet test` pass (88 tests): hashed passwords, `/api/auth/login` and `/me`, JWT, fallback policy, `escalatedBy` from the token, login page, protected routes, logout, 401 handling. Web checks pass (21 tests, `tsc`, `eslint`). Not yet exercised by hand against a running API |
-| 4. Dockerise the API | **Written, not yet run by me**: multi-stage Dockerfile, `.dockerignore`, `api` service in compose, `/health`. The Docker verification steps below have not been run yet |
+| 4. Dockerise the API | **Done and run**: multi-stage Dockerfile, `.dockerignore`, `api` service in compose, `/health`. Verified with `docker compose up --build` (see *How I checked*); the cached-restore check and the SDK image size are not done |
 
-Task 3 builds and its tests pass; Task 4 (Docker) has not been run yet, see *How I checked*.
+Tasks 3 and 4 build, run and were checked (see *How I checked*).
 
 ### Business rules as I understood them
 
@@ -201,18 +201,19 @@ curl http://localhost:5080/health                      # {"status":"Healthy","ch
 - **In a real deployment** migrations should be a separate, deliberate step (a one-off job or `dotnet ef migrations bundle` run by the pipeline before the new version starts) rather than every instance migrating on boot: several instances starting together would race on the schema, the app's database account would need schema-change rights, and a failed migration should stop a release, not crash-loop the app.
 - **Web against the container:** `VITE_API_PROXY_TARGET=http://localhost:5080 npm run web`, then sign in as above.
 
-### How I checked (to be run)
+### How I checked
 
-I could not run .NET or Docker where I wrote Tasks 3 and 4, so these have **not** been run:
+**Docker (run on 22 Oct 2026, Docker Desktop 4.96 on an Apple Silicon Mac):**
 
-1. `dotnet build` and `dotnet test` (new tests: password hasher, login handler; the existing architecture test that the model matches the latest migration must also pass with the new `PasswordHash` column).
-2. `npm run api`, sign in via Swagger/the web app; a request without a token returns 401; with a token returns 200.
-3. `docker compose down -v && docker compose up --build`, then `/health` and `/api/auth/login` on port 5080.
-4. Change one `.cs` file, rebuild, and confirm the restore layer shows `CACHED`.
-5. `docker compose exec api whoami` prints `app`, not `root`.
-6. `docker images` to compare the runtime image size with `mcr.microsoft.com/dotnet/sdk:10.0`.
+- `docker compose down -v && docker compose up --build` built the image, SQL Server became healthy, and the API started in the `Production` environment, listening on `http://[::]:8080`.
+- `curl http://localhost:5080/health` returned `{"status":"Healthy","checks":{"database":"Healthy"}}`.
+- `curl -i http://localhost:5080/api/tickets` without a token returned `401 Unauthorized`.
+- `POST /api/auth/login` with the seeded dev agent returned a JWT, its expiry (one hour later) and the user.
+- `docker compose exec api whoami` printed `app`, not `root`.
+- **Image size:** the runtime image `northwind-supportcopy2-api` is **483 MB on disk (122 MB compressed)**. SDK image size: not measured.
+- **Not yet checked:** that editing one `.cs` file and rebuilding reuses the cached restore layer (`CACHED` on the restore step), and `VITE_API_PROXY_TARGET=http://localhost:5080 npm run web` against the container.
 
-Web side, run: `npm test` (21 tests), `tsc` and `eslint` all pass.
+**Other checks:** `dotnet build` and `dotnet test` pass (88 tests, including the architecture test that the EF model matches the latest migration). Web: `npm test` (21 tests), `tsc` and `eslint` pass. I also looked at the login, ticket list, ticket detail and escalation screens running against a stand-in API.
 
 ### Testing
 
@@ -232,7 +233,6 @@ Web side, run: `npm test` (21 tests), `tsc` and `eslint` all pass.
 ### Known limitations
 
 - The optional SLA summary report is not done.
-- Task 4 (Docker) is unverified (see *How I checked*).
 - No lockout or rate limiting on login, no refresh tokens, no password change or reset, no roles: all out of scope.
 - A deactivated agent's existing token keeps working on ordinary endpoints until it expires (up to 60 minutes); only `/api/auth/me` and new logins check that the agent is still active.
 - The token is in `sessionStorage`, readable by page script (see *Authentication*).
