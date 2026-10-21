@@ -4,7 +4,6 @@ import { ticketsApi } from '../../../api/tickets';
 import { Field } from '../../../components/Field';
 import type { EscalationResult, TicketDetail } from '../../../types/api';
 import {
-  ACTOR_MAX,
   REASON_MAX,
   escalationBlockedReason,
   validateEscalation,
@@ -20,7 +19,6 @@ interface EscalationPanelProps {
 /** Escalates a ticket one priority level, with a reason that is recorded in its history. */
 export function EscalationPanel({ ticket, onEscalated }: EscalationPanelProps) {
   const [reason, setReason] = useState('');
-  const [escalatedBy, setEscalatedBy] = useState('');
   const [errors, setErrors] = useState<EscalationFormErrors>({});
   const [serverError, setServerError] = useState<string>();
   const [isPending, setIsPending] = useState(false);
@@ -31,7 +29,7 @@ export function EscalationPanel({ ticket, onEscalated }: EscalationPanelProps) {
     event.preventDefault();
     setServerError(undefined);
 
-    const found = validateEscalation(reason, escalatedBy);
+    const found = validateEscalation(reason);
     setErrors(found);
 
     if (Object.keys(found).length > 0) {
@@ -43,7 +41,6 @@ export function EscalationPanel({ ticket, onEscalated }: EscalationPanelProps) {
     try {
       const result = await ticketsApi.escalate(ticket.id, {
         reason: reason.trim(),
-        escalatedBy: escalatedBy.trim(),
       });
 
       setReason('');
@@ -64,7 +61,7 @@ export function EscalationPanel({ ticket, onEscalated }: EscalationPanelProps) {
 
       <form onSubmit={(event) => void submit(event)} noValidate>
         <Field id="escalation-reason" label="Reason" error={errors.reason}
-          hint={`${REASON_MAX} characters at most.`}>
+          hint={`${REASON_MAX} characters at most. The escalation is recorded under your name.`}>
           {(props) => (
             <textarea
               {...props}
@@ -73,19 +70,6 @@ export function EscalationPanel({ ticket, onEscalated }: EscalationPanelProps) {
               value={reason}
               disabled={Boolean(blockedReason)}
               onChange={(event) => setReason(event.target.value)}
-            />
-          )}
-        </Field>
-
-        <Field id="escalation-by" label="Escalated by" error={errors.escalatedBy}>
-          {(props) => (
-            <input
-              {...props}
-              type="text"
-              maxLength={ACTOR_MAX}
-              value={escalatedBy}
-              disabled={Boolean(blockedReason)}
-              onChange={(event) => setEscalatedBy(event.target.value)}
             />
           )}
         </Field>

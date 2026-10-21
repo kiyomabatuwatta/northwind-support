@@ -23,5 +23,24 @@ services:
       retries: 12
       start_period: 20s
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: supportdesk-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Production}"
+      # Reaches SQL Server by its service name, not localhost.
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=SupportDesk;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Local_Dev_Password1};TrustServerCertificate=True;Encrypt=False"
+      # Local placeholder - set a real one in .env for anything beyond your own machine.
+      Jwt__SigningKey: "${Jwt__SigningKey:-local-development-only-signing-key-not-a-secret-0123456789}"
+      # Empty volume -> apply migrations and seed the demo data on start-up.
+      Database__MigrateOnStartup: "${Database__MigrateOnStartup:-true}"
+
 volumes:
   supportdesk-sql:

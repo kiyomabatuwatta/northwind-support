@@ -22,8 +22,8 @@ One `SlaIndicator` component draws every SLA state (text plus symbol, not colour
 
 ## Task 3: authentication
 
-Not finished. My plan was a `PasswordHash` on the existing agents (PasswordHasher), a JWT login endpoint, a fallback authorization policy so every endpoint is closed unless opened explicitly, the signing key from configuration, and `escalatedBy` taken from the token.
+Credentials are a nullable `PasswordHash` on `Agents`: agents are the only users, so a separate table would only add a join. Hashing is PBKDF2-SHA256 from the runtime, behind an `IPasswordHasher` so the application never sees the algorithm. Login failures (unknown email, wrong password, inactive agent) are one 401 message and cost one hash verification each. The JWT is issued in the Presentation layer, and a fallback authorization policy closes every endpoint by default, so safety does not depend on remembering an attribute. `escalatedBy` now comes from the token. On the web side the session is held in `sessionStorage`, attached in `api/client.ts`, and any 401 clears it and returns the user to login, with the original page remembered.
 
 ## Task 4: Docker
 
-Not finished.
+A multi-stage Dockerfile restores from project files first so the restore layer is cached, then publishes and runs on the ASP.NET runtime image as the unprivileged user on port 8080. No configuration is baked in: Development settings are excluded from the build context and everything comes from environment variables in compose. On an empty volume the API migrates and seeds itself (opt-in flag); the README explains why a real deployment should migrate as a separate step instead.

@@ -41,7 +41,6 @@ describe('EscalationPanel', () => {
     render(<EscalationPanel ticket={ticket()} onEscalated={onEscalated} />);
 
     await user.type(screen.getByLabelText('Reason'), 'no');
-    await user.type(screen.getByLabelText('Escalated by'), 'Kiyoma');
     await user.click(screen.getByRole('button', { name: 'Escalate ticket' }));
 
     expect(screen.getByText(/between 5 and 500 characters/)).toBeInTheDocument();
@@ -56,7 +55,6 @@ describe('EscalationPanel', () => {
     render(<EscalationPanel ticket={ticket()} onEscalated={onEscalated} />);
 
     await user.type(screen.getByLabelText('Reason'), 'Customer is waiting');
-    await user.type(screen.getByLabelText('Escalated by'), 'Kiyoma');
     await user.click(screen.getByRole('button', { name: 'Escalate ticket' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('already Critical');
@@ -70,10 +68,9 @@ describe('EscalationPanel', () => {
     render(<EscalationPanel ticket={ticket()} onEscalated={onEscalated} />);
 
     await user.type(screen.getByLabelText('Reason'), '  Customer is waiting  ');
-    await user.type(screen.getByLabelText('Escalated by'), 'Kiyoma');
     await user.click(screen.getByRole('button', { name: 'Escalate ticket' }));
 
-    expect(escalate).toHaveBeenCalledWith(12, { reason: 'Customer is waiting', escalatedBy: 'Kiyoma' });
+    expect(escalate).toHaveBeenCalledWith(12, { reason: 'Customer is waiting' });
     expect(onEscalated).toHaveBeenCalledTimes(1);
   });
 

@@ -113,7 +113,19 @@ export interface EscalationResult {
 
 export interface EscalatePayload {
   reason: string;
-  escalatedBy: string;
+}
+
+/** The signed-in agent. */
+export interface CurrentUser {
+  id: number;
+  fullName: string;
+  email: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  expiresAtUtc: string;
+  user: CurrentUser;
 }
 
 /** Everything the ticket list screen can narrow the results by. */

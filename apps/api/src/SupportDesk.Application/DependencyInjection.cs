@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using SupportDesk.Application.Features.Auth.GetCurrentUser;
+using SupportDesk.Application.Features.Auth.Login;
 using SupportDesk.Application.Features.Agents.Queries.GetAgents;
 using SupportDesk.Application.Features.Categories.Queries.GetCategories;
 using SupportDesk.Application.Features.Customers.Queries.GetCustomer;
@@ -36,6 +38,9 @@ public static class DependencyInjection
         services.AddScoped<GetCustomerQueryHandler>();
 
         services.AddScoped<GetAgentsQueryHandler>();
+
+        services.AddScoped<LoginCommandHandler>();
+        services.AddScoped<GetCurrentUserQueryHandler>();
 
         services.AddScoped<GetCategoriesQueryHandler>();
 

@@ -17,10 +17,49 @@ namespace SupportDesk.Infrastructure.Data;
 /// Every aggregate is built through its own behaviour. The two historical values no behaviour
 /// produces - a ticket's last update and its due date - are set through EF Core directly.
 /// </remarks>
-public sealed class SupportDbSeeder(SupportDbContext db, IClock clock, ILogger<SupportDbSeeder> logger)
+public sealed class SupportDbSeeder(
+    SupportDbContext db,
+    IClock clock,
+    IPasswordHasher passwordHasher,
+    ILogger<SupportDbSeeder> logger)
 {
+    /// <summary>
+    /// The password every seeded agent signs in with. A local development fixture, not a secret:
+    /// it exists only in demo databases, and only its hash is stored.
+    /// </summary>
+    public const string DevPassword = "Dev-Password-1!";
+
     /// <summary>Seeds the database, unless it already has tickets in it.</summary>
     public async Task SeedAsync(CancellationToken ct = default)
+    {
+        await SeedDemoDataAsync(ct);
+        await SeedCredentialsAsync(ct);
+    }
+
+    /// <summary>
+    /// Gives every agent without a password the development password, hashed now. Runs on an
+    /// already-seeded database too, so adding login does not require a fresh volume.
+    /// </summary>
+    private async Task SeedCredentialsAsync(CancellationToken ct)
+    {
+        var withoutPassword = await db.Set<Agent>().Where(a => a.PasswordHash == null).ToListAsync(ct);
+
+        if (withoutPassword.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var agent in withoutPassword)
+        {
+            agent.SetPasswordHash(passwordHasher.Hash(DevPassword));
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Set the development password for {Count} agents.", withoutPassword.Count);
+    }
+
+    private async Task SeedDemoDataAsync(CancellationToken ct)
     {
         if (await db.Set<Ticket>().AnyAsync(ct))
         {

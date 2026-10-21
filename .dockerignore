@@ -1,0 +1,27 @@
+# Keep the build context small and keep local files out of the image.
+**/bin/
+**/obj/
+**/node_modules/
+.git/
+.github/
+.vscode/
+.env
+.env.*
+!.env.example
+
+# The web app is not part of the API image.
+apps/web/
+
+# Local development configuration must not be baked into the image (the Development
+# connection string and signing key); the container gets its configuration at run time.
+**/appsettings.Development.json
+**/Properties/launchSettings.json
+
+# Tests, docs and local tooling.
+apps/api/tests/
+spec/
+db/
+*.md
+*.pdf
+*.sh
+docker-compose*.yml

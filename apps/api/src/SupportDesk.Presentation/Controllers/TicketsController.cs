@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SupportDesk.Application.Contracts.Common;
 using SupportDesk.Application.Contracts.Tickets;
+using SupportDesk.Application.Exceptions;
 using SupportDesk.Application.Features.Tickets.Commands.AssignTicket;
 using SupportDesk.Application.Features.Tickets.Commands.ChangeTicketStatus;
 using SupportDesk.Application.Features.Tickets.Commands.EscalateTicket;
@@ -8,6 +10,8 @@ using SupportDesk.Application.Features.Tickets.Commands.RaiseTicket;
 using SupportDesk.Application.Features.Tickets.Queries.GetEscalations;
 using SupportDesk.Application.Features.Tickets.Queries.GetTicket;
 using SupportDesk.Application.Features.Tickets.Queries.SearchTickets;
+using SupportDesk.Domain.Aggregates.Tickets;
+using SupportDesk.Presentation.Auth;
 
 namespace SupportDesk.Presentation.Controllers;
 
@@ -65,10 +69,20 @@ public sealed class TicketsController : ControllerBase
     [HttpPost("{id:int}/escalate")]
     public Task<EscalationResultDto> Escalate(
         int id,
-        EscalateTicketRequest request,
+        EscalateTicketBody body,
         [FromServices] EscalateTicketCommandHandler handler,
-        CancellationToken ct) =>
-        handler.HandleAsync(id, request, ct);
+        CancellationToken ct)
+    {
+        // Who escalated comes from the signed-in agent's token, never from the request body.
+        var actor = User.FindFirstValue(CurrentUser.NameClaim) ?? throw new UnauthorizedException("Not signed in.");
+
+        if (actor.Length > TicketEscalation.MaxEscalatedByLength)
+        {
+            actor = actor[..TicketEscalation.MaxEscalatedByLength];
+        }
+
+        return handler.HandleAsync(id, new EscalateTicketRequest(body.Reason, actor), ct);
+    }
 
     /// <summary>A ticket's escalation history, newest first.</summary>
     [HttpGet("{id:int}/escalations")]

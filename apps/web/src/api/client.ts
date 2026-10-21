@@ -1,3 +1,4 @@
+import { clearSession, currentToken } from '../auth/session';
 import type { ProblemDetails } from '../types/api';
 
 /**
@@ -25,18 +26,44 @@ export class ApiError extends Error {
   }
 }
 
+/** Options for {@link request}, on top of the standard fetch ones. */
+export interface RequestOptions extends RequestInit {
+  /** Set to false for calls where a 401 is an expected answer (login). Defaults to true. */
+  handleUnauthorized?: boolean;
+}
+
+let onUnauthorized: (() => void) | undefined;
+
+/**
+ * Registers what happens after a 401 on a normal call: the session is already cleared, and
+ * this lets the app (which owns the router) send the user to the login page.
+ */
+export function setUnauthorizedHandler(handler: (() => void) | undefined): void {
+  onUnauthorized = handler;
+}
+
 /**
  * The single place that talks to the API. Returns parsed JSON, or throws an
  * {@link ApiError} that callers can show to the user.
  */
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { handleUnauthorized = true, ...init } = options;
+  const token = currentToken();
+
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.headers ?? {}),
     },
   });
+
+  if (response.status === 401 && handleUnauthorized) {
+    // An expired or rejected token: forget it and let the app show the login page.
+    clearSession();
+    onUnauthorized?.();
+  }
 
   if (!response.ok) {
     const problem = await readProblem(response);

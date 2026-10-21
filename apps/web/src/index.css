@@ -443,3 +443,22 @@ textarea[aria-invalid='true'] {
   white-space: nowrap;
   border: 0;
 }
+
+.app__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login__card {
+  width: 100%;
+  max-width: 380px;
+}

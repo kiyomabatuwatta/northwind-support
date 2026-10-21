@@ -12,4 +12,8 @@ public sealed class AgentRepository(SupportDbContext db) : IAgentRepository
         db.Set<Agent>()
             .Include(a => a.Specializations)
             .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+    /// <summary>The Email column's collation is case-insensitive, so this ignores case.</summary>
+    public Task<Agent?> GetByEmailAsync(string email, CancellationToken ct) =>
+        db.Set<Agent>().FirstOrDefaultAsync(a => a.Email == email, ct);
 }
